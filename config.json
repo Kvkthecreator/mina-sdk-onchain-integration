@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "deployAliases": {
+    "reclaim": {
+      "networkId": "testnet",
+      "url": "https://api.minascan.io/node/devnet/v1/graphql",
+      "keyPath": "keys/reclaim.json",
+      "feepayerKeyPath": "/Users/billy/.cache/zkapp-cli/keys/auro.json",
+      "feepayerAlias": "auro",
+      "fee": "0.1",
+      "smartContract": "Reclaim"
+    },
+    "reclaim2": {
+      "networkId": "testnet",
+      "url": "https://api.minascan.io/node/devnet/v1/graphql",
+      "keyPath": "keys/reclaim2.json",
+      "feepayerKeyPath": "/Users/billy/.cache/zkapp-cli/keys/auro.json",
+      "feepayerAlias": "auro",
+      "fee": "0.5",
+      "smartContract": "Reclaim"
+    },
+    "reclaim3": {
+      "networkId": "testnet",
+      "url": "https://api.minascan.io/node/devnet/v1/graphql",
+      "keyPath": "keys/reclaim3.json",
+      "feepayerKeyPath": "/Users/billy/.cache/zkapp-cli/keys/auro.json",
+      "feepayerAlias": "auro",
+      "fee": "1",
+      "smartContract": "Reclaim"
+    },
+    "reclaim4": {
+      "networkId": "testnet",
+      "url": "https://api.minascan.io/node/devnet/v1/graphql",
+      "keyPath": "keys/reclaim4.json",
+      "feepayerKeyPath": "/Users/billy/.cache/zkapp-cli/keys/auro.json",
+      "feepayerAlias": "auro",
+      "fee": "10",
+      "smartContract": "Reclaim"
+    },
+    "reclaim5": {
+      "networkId": "testnet",
+      "url": "https://api.minascan.io/node/devnet/v1/graphql",
+      "keyPath": "keys/reclaim5.json",
+      "feepayerKeyPath": "/Users/billy/.cache/zkapp-cli/keys/auro.json",
+      "feepayerAlias": "auro",
+      "fee": "10",
+      "smartContract": "Reclaim"
+    },
+    "reclaim6": {
+      "networkId": "testnet",
+      "url": "https://api.minascan.io/node/devnet/v1/graphql",
+      "keyPath": "keys/reclaim6.json",
+      "feepayerKeyPath": "/Users/billy/.cache/zkapp-cli/keys/auro.json",
+      "feepayerAlias": "auro",
+      "fee": "10",
+      "smartContract": "Reclaim"
+    },
+    "reclaim7": {
+      "networkId": "testnet",
+      "url": "https://api.minascan.io/node/devnet/v1/graphql",
+      "keyPath": "keys/reclaim7.json",
+      "feepayerKeyPath": "/Users/billy/.cache/zkapp-cli/keys/auro.json",
+      "feepayerAlias": "auro",
+      "fee": "0.1",
+      "smartContract": "Reclaim"
+    },
+    "reclaim8": {
+      "networkId": "testnet",
+      "url": "https://api.minascan.io/node/devnet/v1/graphql",
+      "keyPath": "keys/reclaim8.json",
+      "feepayerKeyPath": "/Users/billy/.cache/zkapp-cli/keys/auro.json",
+      "feepayerAlias": "auro",
+      "fee": "10",
+      "smartContract": "Reclaim"
+    }
+  }
+}
