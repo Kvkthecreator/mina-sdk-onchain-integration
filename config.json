@@ -72,6 +72,15 @@
       "feepayerAlias": "auro",
       "fee": "10",
       "smartContract": "Reclaim"
+    },
+    "devnet": {
+      "networkId": "testnet",
+      "url": "https://api.minascan.io/node/devnet/v1/graphql",
+      "keyPath": "keys/devnet.json",
+      "feepayerKeyPath": "/Users/hadisaleh/.cache/zkapp-cli/keys/deploy-account.json",
+      "feepayerAlias": "deploy-account",
+      "fee": "0.1",
+      "smartContract": "Reclaim"
     }
   }
 }

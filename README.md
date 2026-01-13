@@ -3,6 +3,12 @@
 
 This repository contains the zkApp smart contract.The smart contract verifies proofs submitted by users via the Reclaim Protocol and maintains state on the Mina blockchain.
 
+## Deployments
+
+| Chain Name | Deployed Address | Explorer Link |
+|:-----------|:-----------------|:--------------|
+| Mina Testnet | B62qkKdUy6fJ2qjedmZDUpEwQHpc4owmTGzDzEkdubcM8WRr4kPixi9 | https://minascan.io/devnet/account/B62qkKdUy6fJ2qjedmZDUpEwQHpc4owmTGzDzEkdubcM8WRr4kPixi9/txs |
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
