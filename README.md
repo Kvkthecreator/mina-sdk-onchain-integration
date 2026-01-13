@@ -7,7 +7,7 @@ This repository contains the zkApp smart contract.The smart contract verifies pr
 
 | Chain Name | Deployed Address | Explorer Link |
 |:-----------|:-----------------|:--------------|
-| Mina Testnet | B62qkKdUy6fJ2qjedmZDUpEwQHpc4owmTGzDzEkdubcM8WRr4kPixi9 | https://minascan.io/devnet/account/B62qkKdUy6fJ2qjedmZDUpEwQHpc4owmTGzDzEkdubcM8WRr4kPixi9/txs |
+| Mina Testnet | B62qkKdUy6fJ2qjedmZDUpEwQHpc4owmTGzDzEkdubcM8WRr4kPixi9 | https://minascan.io/devnet/account/B62qkKdUy6fJ2qjedmZDUpEwQHpc4owmTGzDzEkdubcM8WRr4kPixi9/zk-txs |
 
 ## Prerequisites
 
