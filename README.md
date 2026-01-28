@@ -1,7 +1,7 @@
 # Mina SDK
 ## Overview
 
-This repository contains the zkApp smart contract.The smart contract verifies proofs submitted by users via the Reclaim Protocol and maintains state on the Mina blockchain.
+This repository contains the zkApp smart contract. The smart contract verifies proofs submitted by users via the Reclaim Protocol and maintains state on the Mina blockchain.
 
 ## Deployments
 
@@ -13,7 +13,6 @@ This repository contains the zkApp smart contract.The smart contract verifies pr
 
 Before you begin, ensure you have the following installed:
 
-- **Node.js and npm**: Install [Node.js](https://nodejs.org/) (which includes npm).
 - **Mina zkApp CLI**: Install the zkApp CLI globally:
     
     ```bash
@@ -99,23 +98,22 @@ To deploy your zkApp smart contract to the Mina Devnet, follow these steps:
     
     Review the deployment details provided by the CLI:
     
-    ```lua
-    
-    |-----------------|--------------------------------------------|
-    | Deploy alias    | devnet                                     |
-    |-----------------|--------------------------------------------|
-    | Network kind    | testnet                                    |
-    |-----------------|--------------------------------------------|
+    ```
+    |-----------------|------------------------------------------------|
+    | Deploy alias    | devnet                                         |
+    |-----------------|------------------------------------------------|
+    | Network kind    | testnet                                        |
+    |-----------------|------------------------------------------------|
     | URL             | https://api.minascan.io/node/devnet/v1/graphql |
-    |-----------------|--------------------------------------------|
-    | Fee payer       | Alias   : deploy-account                   |
-    |                 | Account : YOUR_FEE_PAYER_PUBLIC_KEY        |
-    |-----------------|--------------------------------------------|
-    | zkApp           | Smart contract: Reclaim                    |
-    |                 | Account       : YOUR_ZKAPP_PUBLIC_KEY      |
-    |-----------------|--------------------------------------------|
-    | Transaction fee | 0.1 Mina                                   |
-    |-----------------|--------------------------------------------|
+    |-----------------|------------------------------------------------|
+    | Fee payer       | Alias   : deploy-account                       |
+    |                 | Account : YOUR_FEE_PAYER_PUBLIC_KEY            |
+    |-----------------|------------------------------------------------|
+    | zkApp           | Smart contract: Reclaim                        |
+    |                 | Account       : YOUR_ZKAPP_PUBLIC_KEY          |
+    |-----------------|------------------------------------------------|
+    | Transaction fee | 0.1 Mina                                       |
+    |-----------------|------------------------------------------------|
     
     ```
     
@@ -125,7 +123,7 @@ To deploy your zkApp smart contract to the Mina Devnet, follow these steps:
     
     After sending the transaction, wait for it to be included in a block. You will receive a transaction hash that you can use to track the deployment:
     
-    ```vbnet
+    ```
     Success! Deploy transaction sent.
     
     Next step:
