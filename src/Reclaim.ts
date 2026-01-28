@@ -215,15 +215,13 @@ export class Reclaim extends SmartContract {
     // Remove "0x" prefix if present
     let normalized = hex.startsWith('0x') ? hex.slice(2) : hex;
 
-    // Pad with leading zeros to 64 characters
-    while (normalized.length < 64) {
-      normalized = '00' + normalized;
-    }
-
-    // Ensure the hex string has an even length
+    // Ensure the hex string has an even length first
     if (normalized.length % 2 !== 0) {
       normalized = '0' + normalized;
     }
+
+    // Pad with leading zeros to 64 characters (32 bytes)
+    normalized = normalized.padStart(64, '0');
 
     const fields: Field[] = [];
     for (let i = 0; i < normalized.length; i += 2) {

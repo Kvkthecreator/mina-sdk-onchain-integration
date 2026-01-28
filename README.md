@@ -137,6 +137,11 @@ To deploy your zkApp smart contract to the Mina Devnet, follow these steps:
     
     Visit the provided URL to verify that your zkApp has been deployed successfully.
     
+5. **Test**
+    
+    ```bash
+    npm run test
+    ```
 
 ## Important Notes
 
