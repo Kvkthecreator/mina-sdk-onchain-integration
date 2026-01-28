@@ -1,3 +1,3 @@
-import { Reclaim } from './Reclaim.js';
+import { Reclaim, Proof, ClaimInfo, Claim, SignedClaim } from './Reclaim.js';
 
-export { Reclaim };
+export { Reclaim, Proof, ClaimInfo, Claim, SignedClaim };

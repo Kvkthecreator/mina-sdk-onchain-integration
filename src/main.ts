@@ -6,12 +6,6 @@ import {
   PrivateKey,
   AccountUpdate,
   MerkleTree,
-  assert,
-  Signature,
-  Poseidon,
-  Circuit,
-  Bytes,
-  Keccak,
 } from 'o1js';
 
 const useProof = true;
@@ -41,8 +35,9 @@ const witnessFields: Field[] = [
 ];
 const witness = witnessFields[0];
 
-const leafCount = witnessFields.length;
-const tree = new MerkleTree(leafCount);
+// MerkleTree height must accommodate all leaves: 2^(height-1) >= leafCount
+const treeHeight = Math.max(2, Math.ceil(Math.log2(witnessFields.length)) + 1);
+const tree = new MerkleTree(treeHeight);
 witnessFields.forEach((field, index) => {
   tree.setLeaf(BigInt(index), field);
 });
@@ -55,14 +50,6 @@ await txn1.prove();
 await txn1.sign([deployerKey]).send();
 
 // ---------------------- VerifyProof ------------------------------
-function stringToField(str: String) {
-  const bytes = Buffer.from(str, 'utf8');
-  const bytesArray = Array.from(bytes);
-  const fields = bytesArray.map((byte) => Field(byte));
-  //   const fields = bytes.map((byte) => Field(byte));
-  return Poseidon.hash(fields);
-}
-
 let provider = 'http';
 
 let parameter =
@@ -96,8 +83,6 @@ const signedClaim = new SignedClaim({
   signatures: signatures,
   signers: Field(BigInt('0x244897572368eadf65bfbc5aec98d8e5443a9072')),
 });
-
-const treee = new MerkleTree(2);
 
 const proof = new Proof({
   claimInfo: claimInfo,

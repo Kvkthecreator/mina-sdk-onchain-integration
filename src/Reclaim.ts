@@ -8,11 +8,11 @@ import {
   State,
   state,
   Bool,
-  assert,
   Keccak,
   Bytes,
   PublicKey,
   AccountUpdate,
+  Provable,
 } from 'o1js';
 
 // Define ClaimInfo
@@ -61,15 +61,13 @@ export class Reclaim extends SmartContract {
   }
 
   @method async addNewEpoch(newWitnessesRoot: Field) {
-    let senderUpdate = AccountUpdate.create(
-      this.sender.getAndRequireSignature()
-    );
+    // Validate that the caller is the owner
+    let callerPublicKey = this.sender.getAndRequireSignature();
+    let senderUpdate = AccountUpdate.create(callerPublicKey);
     senderUpdate.requireSignature();
 
-    // Validate that the caller is the owner
     let owner = this.owner.get();
     this.owner.requireEquals(owner);
-    let callerPublicKey = this.sender.getAndRequireSignature();
     owner.assertEquals(callerPublicKey);
 
     // Step 2: Calculate the new epoch number
@@ -82,10 +80,8 @@ export class Reclaim extends SmartContract {
   }
 
   @method async verifyProof(proof: Proof, witness: Field) {
-    // 1. Ensure proof has signatures
+    // 1. Signatures are guaranteed by the SignedClaim struct definition
     let signatures = proof.signedClaim.signatures;
-
-    assert(signatures.length !== 0, 'No signatures in the proof');
 
     // 2. Create and hash the structured claim info data
     let claimInfoDataHash = this.hashClaimInfo(
@@ -152,7 +148,7 @@ export class Reclaim extends SmartContract {
   }
 
   compareFields(fields1: Field[], fields2: Field[]): Bool {
-    // @TODO Check waht we can do about it
+    // @TODO Check what we can do about it
     Field(fields1.length).assertEquals(
       Field(fields2.length),
       'Array lengths mismatch'
@@ -217,23 +213,21 @@ export class Reclaim extends SmartContract {
 
   hexStringToFields(hex: string): Field[] {
     // Remove "0x" prefix if present
+    let normalized = hex.startsWith('0x') ? hex.slice(2) : hex;
 
-    if (hex.startsWith('0x')) {
-      hex = hex.slice(2);
-    }
-
-    while (hex.length < 64) {
-      hex = '00' + hex; // Pad with leading zeros
+    // Pad with leading zeros to 64 characters
+    while (normalized.length < 64) {
+      normalized = '00' + normalized;
     }
 
     // Ensure the hex string has an even length
-    if (hex.length % 2 !== 0) {
-      hex = '0' + hex;
+    if (normalized.length % 2 !== 0) {
+      normalized = '0' + normalized;
     }
 
     const fields: Field[] = [];
-    for (let i = 0; i < hex.length; i += 2) {
-      const byteHex = hex.slice(i, i + 2);
+    for (let i = 0; i < normalized.length; i += 2) {
+      const byteHex = normalized.slice(i, i + 2);
       const byteValue = parseInt(byteHex, 16);
       fields.push(Field(byteValue));
     }
@@ -255,11 +249,9 @@ export class Reclaim extends SmartContract {
 
   circuitSwitch(selector: Field, cases: Field[]): Field {
     let result = cases[0];
-    for (let i = 0; i < cases.length; i++) {
+    for (let i = 1; i < cases.length; i++) {
       let isSelected = selector.equals(Field.from(i));
-      if (isSelected) {
-        result = cases[i];
-      }
+      result = Provable.if(isSelected, cases[i], result);
     }
     return result;
   }
