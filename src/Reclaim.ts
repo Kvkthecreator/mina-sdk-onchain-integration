@@ -5,6 +5,7 @@ import {
   Struct,
   Poseidon,
   UInt32,
+  UInt8,
   State,
   state,
   Bool,
@@ -13,7 +14,35 @@ import {
   PublicKey,
   AccountUpdate,
   Provable,
+  Crypto,
+  createForeignCurve,
+  createEcdsa,
 } from 'o1js';
+
+// ---------------------------------------------------------------------------
+// In-circuit ECDSA-secp256k1 attestor primitive.
+//
+// Reclaim attestors sign claim digests with secp256k1 + keccak256, producing
+// Ethereum-style 65-byte (r || s || v) signatures. To verify an attestor
+// signature inside a Mina circuit, we need:
+//   1. A foreign-curve type for secp256k1 (`Secp256k1`).
+//   2. An ECDSA signature type bound to that curve (`EcdsaSecp256k1`).
+//   3. A 32-byte digest container (`AttestorDigest`).
+// All three are first-class in o1js's standard library; no external crypto.
+//
+// The attestor's identity is its 20-byte Ethereum address, i.e.
+// `keccak256(uncompressed_pubkey)[12:]`. We expose the address as the
+// public anchoring input on `verifySignedClaim` and derive it in-circuit
+// from the witnessed pubkey to prove the signature came from the trusted
+// attestor.
+// ---------------------------------------------------------------------------
+export class Secp256k1 extends createForeignCurve(
+  Crypto.CurveParams.Secp256k1
+) {}
+export class EcdsaSecp256k1 extends createEcdsa(Secp256k1) {}
+
+export const ATTESTOR_DIGEST_BYTES = 32;
+export class AttestorDigest extends Bytes(ATTESTOR_DIGEST_BYTES) {}
 
 // Define ClaimInfo
 export class ClaimInfo extends Struct({
@@ -77,6 +106,73 @@ export class Reclaim extends SmartContract {
     this.currentEpoch.set(newEpochNumber);
 
     this.witnessesRoot.set(newWitnessesRoot);
+  }
+
+  /**
+   * Verify a Reclaim attestor signature in-circuit.
+   *
+   * Unlike `verifyProof`, this method actually runs ECDSA-secp256k1
+   * verification inside the zk circuit using o1js's native
+   * `EcdsaSignature.verifySignedHash`, and binds the attestor's
+   * 20-byte Ethereum address to the public `expectedAttestorAddress`
+   * input.
+   *
+   * Inputs:
+   *   claimDigest         32 bytes — keccak256(provider || "\n" || parameters
+   *                       || "\n" || context). Compute off-circuit via
+   *                       `hashClaimInfo()`.
+   *   signature           secp256k1 (r, s) — drop the Ethereum `v` recovery
+   *                       byte and pass r,s only. ECDSA verification does
+   *                       not need v. See `parseEthereumSignature` helper.
+   *   attestorPubKey      The witnessed attestor public key (point on
+   *                       secp256k1). Bound to `expectedAttestorAddress`
+   *                       via in-circuit keccak256(pubkey)[12:].
+   *   expectedAttestorAddress 20 bytes packed into a Field (160 bits, fits
+   *                       comfortably in Mina's 254-bit Field). Should
+   *                       equal a known attestor address from the
+   *                       on-chain epoch witness set.
+   *
+   * Note on signing convention: Reclaim attestors sign the keccak256 digest
+   * directly (i.e. the digest IS the signed message hash, not a message
+   * that gets hashed inside the verifier). We use o1js's
+   * `verifySignedHash` which consumes a pre-computed hash, rather than
+   * `verify` which would apply keccak256 a second time.
+   */
+  @method async verifySignedClaim(
+    claimDigest: AttestorDigest,
+    signature: EcdsaSecp256k1,
+    attestorPubKey: Secp256k1,
+    expectedAttestorAddress: Field
+  ) {
+    // 1. Convert the 32-byte digest into a secp256k1 scalar so we can call
+    //    `verifySignedHash`. The conversion is the canonical
+    //    "interpret bytes as a big-endian integer" operation, mirroring
+    //    o1js's internal `keccakOutputToScalar` helper. Done via
+    //    bit-decomposition + reassembly to stay fully provable.
+    const msgHashScalar = digestToSecp256k1Scalar(claimDigest);
+
+    // 2. Verify the ECDSA-secp256k1 signature on the keccak digest.
+    signature
+      .verifySignedHash(msgHashScalar, attestorPubKey)
+      .assertTrue('attestor ECDSA signature is invalid');
+
+    // 3. Derive the attestor's Ethereum address in-circuit and bind it to
+    //    the expected public input. This proves the witnessed pubkey
+    //    corresponds to the trusted attestor address — without it, a
+    //    prover could substitute any pubkey.
+    const pubKeyBytes = pubKeyToBigEndianBytes(attestorPubKey);
+    const ethAddrDigest = Keccak.ethereum(Bytes.from(pubKeyBytes));
+    let derivedAddress = Field(0);
+    const TWO_POW_8 = Field(256);
+    for (let i = 12; i < 32; i++) {
+      derivedAddress = derivedAddress
+        .mul(TWO_POW_8)
+        .add(ethAddrDigest.bytes[i].value);
+    }
+    expectedAttestorAddress.assertEquals(
+      derivedAddress,
+      'attestor pubkey does not derive to the expected Ethereum address'
+    );
   }
 
   @method async verifyProof(proof: Proof, witness: Field) {
@@ -145,6 +241,44 @@ export class Reclaim extends SmartContract {
     let serializedBytes = Bytes.fromString(serialized);
     let hash = Keccak.ethereum(serializedBytes);
     return hash;
+  }
+
+  /**
+   * Off-circuit helper: parse a Reclaim signature hex string (r || s || v,
+   * Ethereum-style 65 bytes) into the (r, s) scalars consumed by
+   * `verifySignedClaim`. Drops the v byte — recovery is not needed because
+   * the verifier is given the pubkey directly.
+   *
+   * Static so consumers can call without instantiating the contract.
+   */
+  static parseEthereumSignature(hex: string): { r: bigint; s: bigint } {
+    const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
+    if (clean.length !== 130) {
+      throw new Error(
+        `Reclaim signature must be 65 bytes (130 hex chars), got ${clean.length}`
+      );
+    }
+    return {
+      r: BigInt('0x' + clean.slice(0, 64)),
+      s: BigInt('0x' + clean.slice(64, 128)),
+    };
+  }
+
+  /**
+   * Off-circuit helper: convert a 0x-prefixed Ethereum address (20 bytes /
+   * 40 hex chars) to a Field for use as the `expectedAttestorAddress`
+   * public input. Asserts proper length.
+   */
+  static ethAddressToField(addressHex: string): Field {
+    const clean = addressHex.startsWith('0x')
+      ? addressHex.slice(2)
+      : addressHex;
+    if (clean.length !== 40) {
+      throw new Error(
+        `Ethereum address must be 20 bytes (40 hex chars), got ${clean.length}`
+      );
+    }
+    return Field(BigInt('0x' + clean));
   }
 
   compareFields(fields1: Field[], fields2: Field[]): Bool {
@@ -253,4 +387,62 @@ export class Reclaim extends SmartContract {
     }
     return result;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Module-level helpers for the new in-circuit ECDSA path.
+// Exposed so consumers don't need to instantiate `Reclaim` for off-chain
+// preparation work.
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert a Secp256k1 point (x, y) to its 64-byte uncompressed
+ * representation: x_be (32 bytes) || y_be (32 bytes). Used to feed
+ * `Keccak.ethereum` for in-circuit Ethereum-address derivation.
+ *
+ * Uses o1js native `ForeignField.toBits(256)` and assembles bytes via
+ * `Field.fromBits` + `UInt8.from`. Fully provable, no native bigint
+ * arithmetic.
+ */
+function pubKeyToBigEndianBytes(pubKey: Secp256k1): UInt8[] {
+  const xBits = pubKey.x.toBits(256);
+  const yBits = pubKey.y.toBits(256);
+  return [...coordBitsToBytesBE(xBits), ...coordBitsToBytesBE(yBits)];
+}
+
+function coordBitsToBytesBE(bits: Bool[]): UInt8[] {
+  const bytes: UInt8[] = [];
+  for (let byteIdx = 0; byteIdx < 32; byteIdx++) {
+    const leByteOffset = (31 - byteIdx) * 8;
+    const byteBits = bits.slice(leByteOffset, leByteOffset + 8);
+    bytes.push(UInt8.from(Field.fromBits(byteBits)));
+  }
+  return bytes;
+}
+
+/**
+ * Interpret a 32-byte digest as a secp256k1 scalar (big-endian integer).
+ * Equivalent to o1js's internal `keccakOutputToScalar` — assembles the
+ * bytes back into a single bigint-bound scalar for `verifySignedHash`.
+ *
+ * In-circuit: bit-decomposes each byte and shifts, all within Mina's
+ * native Field operations. Wraps the result with `Secp256k1.Scalar.from`
+ * to lift it into the foreign scalar field.
+ */
+function digestToSecp256k1Scalar(digest: AttestorDigest) {
+  // Pack 32 bytes (big-endian) into a single Field — fits because
+  // 32 bytes = 256 bits and our intermediate accumulator stays
+  // under field modulus when reassembled into the scalar field. We
+  // build the integer by `acc * 256 + byte` over the byte sequence,
+  // mirroring how `keccakOutputToScalar` lifts the hash output.
+  const bytes = digest.bytes;
+  // Decompose the 256-bit big-endian byte string into its bits, then
+  // re-pack into a Secp256k1 scalar. This is the cleanest provable
+  // reduction available in o1js v2.1 without `UInt8.fromBits`.
+  const allBitsLE: Bool[] = [];
+  for (let byteIdx = bytes.length - 1; byteIdx >= 0; byteIdx--) {
+    const byteBits = bytes[byteIdx].value.toBits(8); // little-endian within the byte
+    for (let b = 0; b < 8; b++) allBitsLE.push(byteBits[b]);
+  }
+  return Secp256k1.Scalar.fromBits(allBitsLE);
 }
