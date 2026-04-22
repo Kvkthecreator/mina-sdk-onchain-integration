@@ -106,7 +106,9 @@ describe('Reclaim.verifySignedClaim (real circuit, ECDSA)', () => {
     const expectedAddress = ethAddressFromPubKey(attestorPubKey);
     const expectedAddressField = Reclaim.ethAddressToField(expectedAddress);
 
-    // 5. Submit the verifying transaction. Should prove + send cleanly.
+    // 5. Submit the verifying transaction. Should prove + send cleanly —
+    //    Mina.transaction / prove / send throw on failure, so reaching
+    //    the post-send state without throwing is the success signal.
     const txn = await Mina.transaction(senderAccount, async () => {
       await zkApp.verifySignedClaim(
         claimDigest,
@@ -116,11 +118,8 @@ describe('Reclaim.verifySignedClaim (real circuit, ECDSA)', () => {
       );
     });
     await txn.prove();
-    await txn.sign([senderKey]).send();
-
-    // If we got here, the in-circuit ECDSA verify + Ethereum-address
-    // derivation both succeeded.
-    expect(true).toBe(true);
+    const result = await txn.sign([senderKey]).send();
+    expect(result.status).toBe('pending');
   }, 600_000);
 
   it('rejects a signature from a different attestor key', async () => {
@@ -159,6 +158,54 @@ describe('Reclaim.verifySignedClaim (real circuit, ECDSA)', () => {
           forgedSig,
           attestorPubKey,
           expectedAddressField
+        );
+      });
+      await txn.prove();
+      await txn.sign([senderKey]).send();
+    }).rejects.toThrow();
+  }, 600_000);
+
+  it('rejects a valid signature when expectedAttestorAddress does not match the pubkey', async () => {
+    // Exercises the in-circuit address-binding assertion independently
+    // from the signature path: signature itself is valid, but the
+    // expected address binds to a different pubkey. The Ethereum-address
+    // derivation inside verifySignedClaim should fail the assertEquals.
+    const attestorPriv = Secp256k1.Scalar.random();
+    const attestorPubBig = Secp256k1.generator.scale(attestorPriv);
+    const attestorPubKey = Secp256k1.from({
+      x: attestorPubBig.x.toBigInt(),
+      y: attestorPubBig.y.toBigInt(),
+    });
+
+    const claimString = 'http\n{}\n{}';
+    const digestKeccak = Keccak.ethereum(Bytes.fromString(claimString));
+    const digestBytes = Uint8Array.from(
+      digestKeccak.bytes.map((b) => Number(b.toBigInt()))
+    );
+    const claimDigest = AttestorDigest.from(digestBytes);
+
+    const sigBig = EcdsaSecp256k1.signHash(
+      digestBytesToBigInt(digestBytes),
+      attestorPriv.toBigInt()
+    );
+    const validSig = EcdsaSecp256k1.from({
+      r: sigBig.r.toBigInt(),
+      s: sigBig.s.toBigInt(),
+    });
+
+    // Wrong expected address — hardcoded zeros so it cannot accidentally
+    // match the derived address from a random pubkey.
+    const wrongAddressField = Reclaim.ethAddressToField(
+      '0x0000000000000000000000000000000000000000'
+    );
+
+    await expect(async () => {
+      const txn = await Mina.transaction(senderAccount, async () => {
+        await zkApp.verifySignedClaim(
+          claimDigest,
+          validSig,
+          attestorPubKey,
+          wrongAddressField
         );
       });
       await txn.prove();

@@ -258,6 +258,9 @@ export class Reclaim extends SmartContract {
         `Reclaim signature must be 65 bytes (130 hex chars), got ${clean.length}`
       );
     }
+    if (!/^[0-9a-fA-F]+$/.test(clean)) {
+      throw new Error('Reclaim signature contains non-hex characters');
+    }
     return {
       r: BigInt('0x' + clean.slice(0, 64)),
       s: BigInt('0x' + clean.slice(64, 128)),
@@ -277,6 +280,9 @@ export class Reclaim extends SmartContract {
       throw new Error(
         `Ethereum address must be 20 bytes (40 hex chars), got ${clean.length}`
       );
+    }
+    if (!/^[0-9a-fA-F]+$/.test(clean)) {
+      throw new Error('Ethereum address contains non-hex characters');
     }
     return Field(BigInt('0x' + clean));
   }
